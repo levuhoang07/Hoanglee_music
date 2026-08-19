@@ -1,7 +1,7 @@
 import { Track } from './audio';
 
 export interface MusicSourceAdapter {
-  readonly type: 'local' | 'drive';
+  readonly type: 'local' | 'cloud';
   
   /**
    * Khởi tạo URL có thể phát được cho audio player (Object URL hoặc Stream Link)

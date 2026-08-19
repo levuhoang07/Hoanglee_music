@@ -8,9 +8,9 @@ export interface Track {
   duration: number; // in seconds
   fileSize?: number; // in bytes
   mimeType: string;
-  sourceType: 'local' | 'drive';
+  sourceType: 'local' | 'cloud';
   blobId?: string; // ID in IndexedDB for local audio blob
-  streamUrl?: string; // Object URL or drive direct stream URL
+  streamUrl?: string; // Object URL hoặc Cloud stream URL
   coverArtUrl?: string; // Optional artwork (data URL or blob)
   addedAt: number; // timestamp
 }
