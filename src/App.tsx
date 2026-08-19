@@ -25,6 +25,7 @@ export function App() {
     sortBy,
     sortOrder,
     importFiles,
+    loadDemoTrack,
     deleteTrack,
     createPlaylist,
     updatePlaylist,
