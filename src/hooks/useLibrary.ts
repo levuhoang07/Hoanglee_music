@@ -180,10 +180,8 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
 
         const isDuplicate = existingTracks.some(
           (t) =>
-            ((t.title.toLowerCase() === title.toLowerCase() &&
-              t.artist.toLowerCase() === artist.toLowerCase()) ||
-              t.title.toLowerCase() === file.name.toLowerCase()) &&
-            (t.fileSize === file.size || Math.abs((t.fileSize || 0) - file.size) < 500)
+            t.title.toLowerCase() === title.toLowerCase() &&
+            t.fileSize === file.size
         );
 
         if (isDuplicate) {
