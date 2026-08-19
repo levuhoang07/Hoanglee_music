@@ -176,7 +176,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
       const duplicates: string[] = [];
 
       for (const file of fileArray) {
-        const { title, artist } = parseFilename(file.name);
+        const { title } = parseFilename(file.name);
 
         const isDuplicate = existingTracks.some(
           (t) =>
