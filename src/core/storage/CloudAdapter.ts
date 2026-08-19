@@ -24,13 +24,12 @@ export class CloudMusicAdapter {
     const supabase = getSupabaseClient();
     if (!supabase) return [];
 
-    // Query all tracks without restrictive 20-item limit
     const { data, error } = await supabase
       .from('tracks')
       .select('*')
       .eq('room_code', roomCode)
       .order('created_at', { ascending: false })
-      .range(0, 4999); // Unlimited range up to 5000 items
+      .range(0, 4999);
 
     if (error) {
       console.error('Lỗi lấy bài hát từ Cloud:', error);
@@ -68,12 +67,12 @@ export class CloudMusicAdapter {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${roomCode}/${trackId}_${cleanFileName}`;
 
-    // 1. Upload audio binary to Storage Bucket
+    // 1. Upload audio binary to Storage Bucket (with upsert: true)
     const { error: uploadError } = await supabase.storage
       .from('music_files')
       .upload(storagePath, file, {
         cacheControl: '3600',
-        upsert: false,
+        upsert: true,
         contentType: file.type || 'audio/mpeg',
       });
 
@@ -81,12 +80,12 @@ export class CloudMusicAdapter {
       throw new Error(`Lỗi tải file lên đám mây: ${uploadError.message}`);
     }
 
-    // 2. Get Public URL
+    // 2. Get Public Stream URL
     const { data: urlData } = supabase.storage.from('music_files').getPublicUrl(storagePath);
     const streamUrl = urlData.publicUrl;
 
     // 3. Save Record to PostgreSQL 'tracks' table
-    const { error: dbError } = await supabase.from('tracks').insert({
+    const { error: dbError } = await supabase.from('tracks').upsert({
       id: trackId,
       title,
       artist,
@@ -96,7 +95,7 @@ export class CloudMusicAdapter {
       storage_path: storagePath,
       stream_url: streamUrl,
       uploader_id: uploaderId || null,
-      uploader_name: uploaderName || 'Bạn bè',
+      uploader_name: uploaderName || 'Admin HoangLee',
       room_code: roomCode,
     });
 
@@ -127,7 +126,6 @@ export class CloudMusicAdapter {
     const supabase = getSupabaseClient();
     if (!supabase) throw new Error('Chưa kết nối Supabase Cloud.');
 
-    // Ensure unique ID for every track so no collisions occur
     const trackId = `cloud_${track.id.replace(/[^a-zA-Z0-9_-]/g, '')}_${Date.now().toString(36)}`;
     const cleanTitle = (track.title || 'audio').replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${roomCode}/${trackId}_${cleanTitle}.mp3`;

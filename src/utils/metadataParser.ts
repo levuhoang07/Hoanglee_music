@@ -10,7 +10,7 @@ export function parseFilename(filename: string): { title: string; artist: string
     const parts = base.split(' - ');
     const artist = parts[0].trim();
     const title = parts.slice(1).join(' - ').trim();
-    return { title: title || base, artist: artist || 'Nghệ sĩ' };
+    return { title: title || base, artist: artist || 'HoangLee Music' };
   }
   
   return {
@@ -20,32 +20,54 @@ export function parseFilename(filename: string): { title: string; artist: string
 }
 
 /**
- * Lấy thời lượng (duration) của file âm thanh bằng Audio Element
+ * Lấy thời lượng (duration) của file âm thanh bằng Audio Element với timeout an toàn
  */
 export function getAudioDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
+    let isDone = false;
     const url = URL.createObjectURL(file);
     const audio = new Audio();
     
     const cleanup = () => {
-      URL.revokeObjectURL(url);
-      audio.removeEventListener('loadedmetadata', onLoaded);
-      audio.removeEventListener('error', onError);
+      if (isDone) return;
+      isDone = true;
+      try {
+        URL.revokeObjectURL(url);
+        audio.removeEventListener('loadedmetadata', onLoaded);
+        audio.removeEventListener('error', onError);
+        audio.src = '';
+      } catch {
+        // ignore
+      }
     };
 
     const onLoaded = () => {
       const duration = audio.duration;
       cleanup();
-      resolve(isFinite(duration) ? duration : 0);
+      resolve(isFinite(duration) && duration > 0 ? duration : 180);
     };
 
     const onError = () => {
       cleanup();
-      resolve(0);
+      resolve(180); // Default fallback 3 minutes
     };
 
-    audio.addEventListener('loadedmetadata', onLoaded);
-    audio.addEventListener('error', onError);
+    // Timeout safety fallback after 1.5 seconds so large batches never hang!
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve(180);
+    }, 1500);
+
+    audio.addEventListener('loadedmetadata', () => {
+      clearTimeout(timer);
+      onLoaded();
+    });
+    audio.addEventListener('error', () => {
+      clearTimeout(timer);
+      onError();
+    });
+
+    audio.preload = 'metadata';
     audio.src = url;
   });
 }

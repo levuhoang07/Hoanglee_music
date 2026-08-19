@@ -67,11 +67,26 @@ export function useAudioPlayer(playlist: Track[]) {
     currentShufflePosRef.current = 0;
   }, []);
 
-  // Chơi một bài hát cụ thể
+  // Chơi một bài hát cụ thể (Hỗ trợ cả Local IndexedDB và Supabase Cloud Stream)
   const playTrack = useCallback(async (track: Track, autoPlay: boolean = true) => {
     try {
       setAudioState((prev) => ({ ...prev, isBuffering: true, error: null, currentTrack: track }));
-      const streamUrl = await localMusicAdapter.getPlaybackUrl(track);
+      
+      let streamUrl = '';
+      if (track.streamUrl) {
+        streamUrl = track.streamUrl;
+      } else if (track.sourceType === 'cloud') {
+        const { cloudMusicAdapter } = await import('../core/storage/CloudAdapter');
+        streamUrl = await cloudMusicAdapter.getPlaybackUrl(track);
+      } else {
+        try {
+          streamUrl = await localMusicAdapter.getPlaybackUrl(track);
+        } catch {
+          const { cloudMusicAdapter } = await import('../core/storage/CloudAdapter');
+          streamUrl = await cloudMusicAdapter.getPlaybackUrl(track);
+        }
+      }
+
       await audioEngine.loadSource(streamUrl, autoPlay);
     } catch (err: any) {
       setAudioState((prev) => ({
