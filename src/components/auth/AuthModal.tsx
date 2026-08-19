@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { LogIn, UserPlus, Loader2, Sparkles } from 'lucide-react';
+import { LogIn, UserPlus, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,7 +16,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSignUp,
 }) => {
   const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,23 +29,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       if (tab === 'login') {
-        await onSignIn(email, password);
+        await onSignIn(identifier, password);
       } else {
-        await onSignUp(email, password, displayName || 'Bạn Bè');
+        await onSignUp(identifier, password, displayName || 'Bạn Bè');
       }
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      setErrorMsg(err.message || 'Đã có lỗi xảy ra. Vui lòng kiểm tra lại tài khoản & mật khẩu.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFillAdmin = () => {
+    setTab('login');
+    setIdentifier('levuhoang');
+    setPassword('lvh@1605');
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={tab === 'login' ? 'Đăng Nhập HoangLee Music' : 'Tạo Tài Khoản Mới'}
+      title={tab === 'login' ? 'Đăng Nhập Thành Viên & Admin' : 'Tạo Tài Khoản Mới'}
     >
       <div className="space-y-4">
         {/* Tab switch */}
@@ -103,14 +109,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
-              Email
+              Tài khoản hoặc Email
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="levuhoang hoặc email@example.com"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
             />
           </div>
@@ -125,12 +131,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tối thiểu 6 ký tự"
+              placeholder="Nhập mật khẩu..."
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
             />
           </div>
 
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               type="submit"
               disabled={loading}
@@ -145,6 +151,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </div>
         </form>
+
+        {/* Quick Admin fill button */}
+        <div className="pt-2 border-t border-white/10 text-center">
+          <button
+            type="button"
+            onClick={handleFillAdmin}
+            className="text-[11px] text-accent-cyan hover:underline inline-flex items-center gap-1 font-semibold opacity-90 hover:opacity-100"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Điền nhanh thông tin Admin (levuhoang)</span>
+          </button>
+        </div>
       </div>
     </Modal>
   );

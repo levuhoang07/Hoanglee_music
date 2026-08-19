@@ -14,6 +14,7 @@ export interface UserProfile {
   displayName: string;
   avatarUrl?: string;
   currentRoomCode: string;
+  isAdmin?: boolean;
 }
 
 export interface SharedRoom {
