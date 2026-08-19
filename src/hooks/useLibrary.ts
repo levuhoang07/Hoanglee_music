@@ -70,6 +70,19 @@ export function useLibrary() {
     return { count: newTracks.length, tracks: newTracks };
   }, [refreshLibrary]);
 
+  // Add demo track
+  const loadDemoTrack = useCallback(async () => {
+    try {
+      const { createDemoTrack } = await import('../utils/audioGenerator');
+      const track = await createDemoTrack();
+      await refreshLibrary();
+      return track;
+    } catch (err) {
+      console.error('Lỗi khi tạo nhạc demo:', err);
+      return null;
+    }
+  }, [refreshLibrary]);
+
   // Delete a track
   const deleteTrack = useCallback(async (trackId: string) => {
     await localMusicAdapter.deleteTrack(trackId);
@@ -193,6 +206,7 @@ export function useLibrary() {
     currentViewTracks,
     isLoading,
     importFiles,
+    loadDemoTrack,
     deleteTrack,
     createPlaylist,
     updatePlaylist,

@@ -199,6 +199,7 @@ export function App() {
           onPlayTrack={(track) => playTrack(track, true)}
           onDeleteTrack={deleteTrack}
           onImportFiles={importFiles}
+          onLoadDemoTrack={loadDemoTrack}
           onOpenAddToPlaylist={handleOpenAddToPlaylist}
           onRemoveFromPlaylist={
             activePlaylist

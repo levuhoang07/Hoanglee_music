@@ -16,6 +16,7 @@ interface MainStageProps {
   onImportFiles: (files: FileList | File[]) => Promise<{ count: number }>;
   onOpenAddToPlaylist: (track: Track) => void;
   onRemoveFromPlaylist?: (trackId: string) => void;
+  onLoadDemoTrack?: () => Promise<Track | null>;
 }
 
 export const MainStage: React.FC<MainStageProps> = ({
@@ -29,6 +30,7 @@ export const MainStage: React.FC<MainStageProps> = ({
   onImportFiles,
   onOpenAddToPlaylist,
   onRemoveFromPlaylist,
+  onLoadDemoTrack,
 }) => {
   return (
     <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
@@ -64,6 +66,7 @@ export const MainStage: React.FC<MainStageProps> = ({
           onDeleteTrack={onDeleteTrack}
           onOpenAddToPlaylist={onOpenAddToPlaylist}
           onRemoveFromPlaylist={onRemoveFromPlaylist}
+          onLoadDemoTrack={onLoadDemoTrack}
         />
       </div>
     </main>
