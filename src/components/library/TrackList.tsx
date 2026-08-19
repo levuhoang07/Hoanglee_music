@@ -139,7 +139,7 @@ export const TrackList: React.FC<TrackListProps> = ({
           onPlay={onPlayTrack}
           onDelete={onDeleteTrack}
           onOpenAddToPlaylist={onOpenAddToPlaylist}
-          onRemoveFromPlaylist={onRemoveFromPlaylist}
+          onRemoveFromActivePlaylist={onRemoveFromPlaylist}
         />
       ))}
     </div>
