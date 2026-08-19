@@ -14,6 +14,7 @@ interface TrackListProps {
   roomCode?: string;
   localTracksCount?: number;
   isSyncing?: boolean;
+  isAdmin?: boolean;
   onPlayTrack: (track: Track) => void;
   onDeleteTrack: (track: Track) => void;
   onOpenAddToPlaylist: (track: Track) => void;
@@ -31,6 +32,7 @@ export const TrackList: React.FC<TrackListProps> = ({
   roomCode = 'HOANGLEE',
   localTracksCount = 0,
   isSyncing = false,
+  isAdmin = false,
   onPlayTrack,
   onDeleteTrack,
   onOpenAddToPlaylist,
@@ -76,12 +78,14 @@ export const TrackList: React.FC<TrackListProps> = ({
           {activePlaylist
             ? 'Hãy thêm bài hát từ thư viện vào playlist này bằng biểu tượng dấu cộng.'
             : storageMode === 'cloud'
-            ? 'Hãy kéo thả file nhạc lên phòng nghe hoặc bấm nút đồng bộ bài hát từ máy của bạn.'
+            ? isAdmin
+              ? 'Hãy kéo thả file nhạc lên phòng nghe hoặc bấm nút đồng bộ bài hát từ máy của bạn.'
+              : 'Phòng nghe hiện chưa có bài hát nào. Vui lòng chờ Admin tải bài hát lên.'
             : 'Hãy kéo thả file MP3/WAV vào đây hoặc nghe thử ngay bản nhạc mẫu bên dưới.'}
         </p>
 
-        {/* Sync Local Tracks to Room Button */}
-        {storageMode === 'cloud' && localTracksCount > 0 && onSyncLocalToCloud && (
+        {/* Sync Local Tracks to Room Button (Only for Admin) */}
+        {storageMode === 'cloud' && isAdmin && localTracksCount > 0 && onSyncLocalToCloud && (
           <button
             onClick={onSyncLocalToCloud}
             disabled={isSyncing}
@@ -114,6 +118,8 @@ export const TrackList: React.FC<TrackListProps> = ({
     );
   }
 
+  const canDeleteTracks = storageMode !== 'cloud' || Boolean(isAdmin);
+
   return (
     <div className="space-y-1">
       {/* Header Info */}
@@ -136,6 +142,7 @@ export const TrackList: React.FC<TrackListProps> = ({
           index={index}
           isCurrent={currentTrack?.id === track.id}
           isPlaying={isPlaying}
+          canDelete={canDeleteTracks}
           onPlay={onPlayTrack}
           onDelete={onDeleteTrack}
           onOpenAddToPlaylist={onOpenAddToPlaylist}

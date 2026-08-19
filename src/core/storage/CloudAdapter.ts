@@ -24,11 +24,13 @@ export class CloudMusicAdapter {
     const supabase = getSupabaseClient();
     if (!supabase) return [];
 
+    // Query all tracks without restrictive 20-item limit
     const { data, error } = await supabase
       .from('tracks')
       .select('*')
       .eq('room_code', roomCode)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(0, 4999); // Unlimited range up to 5000 items
 
     if (error) {
       console.error('Lỗi lấy bài hát từ Cloud:', error);
@@ -125,12 +127,13 @@ export class CloudMusicAdapter {
     const supabase = getSupabaseClient();
     if (!supabase) throw new Error('Chưa kết nối Supabase Cloud.');
 
-    const trackId = `cloud_${track.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    // Ensure unique ID for every track so no collisions occur
+    const trackId = `cloud_${track.id.replace(/[^a-zA-Z0-9_-]/g, '')}_${Date.now().toString(36)}`;
     const cleanTitle = (track.title || 'audio').replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${roomCode}/${trackId}_${cleanTitle}.mp3`;
 
-    // 1. Upload Blob
-    await supabase.storage
+    // 1. Upload Blob to Storage
+    const { error: uploadError } = await supabase.storage
       .from('music_files')
       .upload(storagePath, blob, {
         cacheControl: '3600',
@@ -138,7 +141,11 @@ export class CloudMusicAdapter {
         contentType: track.mimeType || 'audio/mpeg',
       });
 
-    // 2. Get URL
+    if (uploadError) {
+      console.warn(`Lỗi upload file [${track.title}]:`, uploadError.message);
+    }
+
+    // 2. Get Public URL
     const { data: urlData } = supabase.storage.from('music_files').getPublicUrl(storagePath);
     const streamUrl = urlData.publicUrl;
 
@@ -147,7 +154,7 @@ export class CloudMusicAdapter {
       id: trackId,
       title: track.title,
       artist: track.artist,
-      duration: track.duration,
+      duration: track.duration || 0,
       file_size: track.fileSize || blob.size,
       mime_type: track.mimeType || 'audio/mpeg',
       storage_path: storagePath,

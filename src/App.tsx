@@ -379,6 +379,7 @@ export function App() {
           storageMode={storageMode}
           roomCode={roomCode}
           user={user}
+          isAdmin={Boolean(profile?.isAdmin)}
           localTracksCount={localTracksCount}
           isSyncing={isSyncing}
           onSearchChange={setSearchQuery}
@@ -407,6 +408,7 @@ export function App() {
           roomCode={roomCode}
           localTracksCount={localTracksCount}
           isSyncing={isSyncing}
+          isAdmin={Boolean(profile?.isAdmin)}
           onPlayTrack={(track) => playTrack(track, true)}
           onDeleteTrack={handlePromptDeleteTrack}
           onImportFiles={handleImportFiles}
@@ -462,6 +464,7 @@ export function App() {
         isOpen={isRoomModalOpen}
         onClose={() => setIsRoomModalOpen(false)}
         currentRoomCode={roomCode}
+        isAdmin={Boolean(profile?.isAdmin)}
         onJoinRoom={(code) => {
           joinRoom(code);
           addToast('info', 'Đã đổi phòng', `Đang ở phòng nghe chung: [${code}].`);

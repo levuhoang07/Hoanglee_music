@@ -8,6 +8,7 @@ interface TrackItemProps {
   index: number;
   isCurrent: boolean;
   isPlaying: boolean;
+  canDelete?: boolean;
   onPlay: (track: Track) => void;
   onDelete: (track: Track) => void;
   onOpenAddToPlaylist: (track: Track) => void;
@@ -19,6 +20,7 @@ export const TrackItem: React.FC<TrackItemProps> = ({
   index,
   isCurrent,
   isPlaying,
+  canDelete = true,
   onPlay,
   onDelete,
   onOpenAddToPlaylist,
@@ -104,8 +106,8 @@ export const TrackItem: React.FC<TrackItemProps> = ({
             </button>
           )}
 
-          {/* Delete from library */}
-          {!onRemoveFromActivePlaylist && (
+          {/* Delete from library (Only if permitted) */}
+          {!onRemoveFromActivePlaylist && canDelete && (
             <button
               onClick={() => onDelete(track)}
               title="Xóa bài hát khỏi thư viện"

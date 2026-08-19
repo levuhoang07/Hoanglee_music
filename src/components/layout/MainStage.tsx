@@ -16,6 +16,7 @@ interface MainStageProps {
   roomCode?: string;
   localTracksCount?: number;
   isSyncing?: boolean;
+  isAdmin?: boolean;
   onPlayTrack: (track: Track) => void;
   onDeleteTrack: (track: Track) => void;
   onImportFiles: (files: FileList | File[]) => Promise<{ count: number; duplicates?: string[] }>;
@@ -35,6 +36,7 @@ export const MainStage: React.FC<MainStageProps> = ({
   roomCode = 'HOANGLEE',
   localTracksCount = 0,
   isSyncing = false,
+  isAdmin = false,
   onPlayTrack,
   onDeleteTrack,
   onImportFiles,
@@ -84,6 +86,7 @@ export const MainStage: React.FC<MainStageProps> = ({
           roomCode={roomCode}
           localTracksCount={localTracksCount}
           isSyncing={isSyncing}
+          isAdmin={isAdmin}
           onPlayTrack={onPlayTrack}
           onDeleteTrack={onDeleteTrack}
           onOpenAddToPlaylist={onOpenAddToPlaylist}

@@ -25,6 +25,7 @@ interface HeaderProps {
   storageMode: StorageMode;
   roomCode: string;
   user: any | null;
+  isAdmin?: boolean;
   localTracksCount?: number;
   isSyncing?: boolean;
   onSearchChange: (query: string) => void;
@@ -47,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   storageMode,
   roomCode,
   user,
+  isAdmin = false,
   localTracksCount = 0,
   isSyncing = false,
   onSearchChange,
@@ -108,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
         {storageMode === 'cloud' && (
           <button
             onClick={onOpenRoom}
-            title="Nhấp để đổi phòng hoặc chia sẻ mã cho bạn bè"
+            title={isAdmin ? "Nhấp để đổi phòng hoặc chia sẻ mã cho bạn bè" : "Mã phòng nghe chung hiện tại"}
             className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-accent/15 border border-accent/30 text-accent-cyan font-mono text-xs font-bold hover:bg-accent/25 transition-all"
           >
             <Users className="w-3.5 h-3.5" />
@@ -116,8 +118,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Quick Sync Button (Pushes local tracks into cloud room) */}
-        {localTracksCount > 0 && onSyncLocalToCloud && (
+        {/* Quick Sync Button (Only for Admin to sync local machine songs to public room) */}
+        {isAdmin && localTracksCount > 0 && onSyncLocalToCloud && (
           <button
             onClick={onSyncLocalToCloud}
             disabled={isSyncing}
@@ -176,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
         {user ? (
           <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1 text-xs">
             <div className="px-2 py-1 font-semibold text-text-primary flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-purple-400' : 'bg-emerald-400'} animate-pulse`} />
               <span className="max-w-[80px] sm:max-w-[120px] truncate">
                 {user.displayName || user.user_metadata?.full_name || user.email?.split('@')[0]}
               </span>
@@ -199,14 +201,16 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Cloud Config Gear */}
-        <button
-          onClick={onOpenCloudSettings}
-          title="Cài đặt kết nối Supabase Cloud"
-          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-white/5 transition-colors"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        {/* Cloud Config Gear (Only visible to Admin) */}
+        {isAdmin && (
+          <button
+            onClick={onOpenCloudSettings}
+            title="Cài đặt kết nối Supabase Cloud (Chỉ dành cho Admin)"
+            className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </header>
   );
