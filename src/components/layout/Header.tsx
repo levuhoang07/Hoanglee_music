@@ -65,6 +65,10 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
+        <h2 className="hidden xl:block text-sm font-bold text-text-primary tracking-tight truncate max-w-[180px]">
+          {title}
+        </h2>
+
         {/* Mode Switcher Pill */}
         <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold">
           <button

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { Users, Copy, Check, Sparkles } from 'lucide-react';
+import { Users, Copy, Check } from 'lucide-react';
 
 interface RoomModalProps {
   isOpen: boolean;

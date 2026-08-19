@@ -9,7 +9,7 @@ import {
 } from '../core/storage/db';
 import { localMusicAdapter } from '../core/storage/LocalAdapter';
 import { cloudMusicAdapter } from '../core/storage/CloudAdapter';
-import { getSupabaseClient, isSupabaseConfigured } from '../core/supabase/client';
+import { getSupabaseClient } from '../core/supabase/client';
 
 export type StorageMode = 'local' | 'cloud';
 
