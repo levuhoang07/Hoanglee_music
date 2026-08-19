@@ -15,7 +15,8 @@ import { getSupabaseClient } from '../core/supabase/client';
 export type StorageMode = 'local' | 'cloud';
 
 export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProfile?: any) {
-  const [storageMode, setStorageMode] = useState<StorageMode>('cloud'); // Default to Cloud room HOANGLEE
+  // Mặc định luôn là 'local' (Máy Của Tôi). Chỉ chuyển sang 'cloud' khi người dùng đã đăng nhập!
+  const [storageMode, setStorageMode] = useState<StorageMode>('local');
   const [localTracksCount, setLocalTracksCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [libraryState, setLibraryState] = useState<LibraryState>({
@@ -49,6 +50,16 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
       await checkLocalTracks();
 
       if (storageMode === 'cloud') {
+        // Chỉ tải nhạc từ phòng Cloud nếu đã đăng nhập tài khoản
+        if (!currentUserProfile) {
+          setLibraryState((prev) => ({
+            ...prev,
+            tracks: [],
+            playlists: [],
+          }));
+          return;
+        }
+
         const cloudTracks = await cloudMusicAdapter.getAllTracks(roomCodeRef.current || 'HOANGLEE');
         const playlists = await getAllPlaylistsFromDB();
         setLibraryState((prev) => ({
@@ -57,6 +68,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
           playlists,
         }));
       } else {
+        // Chế độ Máy Của Tôi (IndexedDB)
         const [tracks, playlists] = await Promise.all([
           getAllTracksFromDB(),
           getAllPlaylistsFromDB(),
@@ -72,7 +84,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
     } finally {
       setIsLoading(false);
     }
-  }, [storageMode, checkLocalTracks]);
+  }, [storageMode, currentUserProfile, checkLocalTracks]);
 
   useEffect(() => {
     refreshLibrary();
@@ -80,7 +92,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
 
   // Real-time listener for Cloud Mode (Supabase changes)
   useEffect(() => {
-    if (storageMode !== 'cloud') return;
+    if (storageMode !== 'cloud' || !currentUserProfile) return;
     const supabase = getSupabaseClient();
     if (!supabase) return;
 
@@ -98,9 +110,9 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [storageMode, refreshLibrary]);
+  }, [storageMode, currentUserProfile, refreshLibrary]);
 
-  // Sync all Local IndexedDB Tracks into Supabase Room HOANGLEE
+  // Sync all Local IndexedDB Tracks into Supabase Room HOANGLEE (Manual trigger only)
   const syncLocalTracksToCloud = useCallback(
     async (targetRoom: string = 'HOANGLEE') => {
       try {
@@ -135,21 +147,6 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
     },
     [currentUserProfile, refreshLibrary]
   );
-
-  // Auto-sync check: if Cloud library has 0 tracks but local has tracks, trigger auto sync
-  useEffect(() => {
-    if (storageMode === 'cloud') {
-      checkLocalTracks().then(async (locals) => {
-        if (locals.length > 0) {
-          const cloudTracks = await cloudMusicAdapter.getAllTracks(roomCodeRef.current || 'HOANGLEE');
-          if (cloudTracks.length === 0) {
-            // Auto sync local tracks to room
-            syncLocalTracksToCloud(roomCodeRef.current || 'HOANGLEE').catch(() => {});
-          }
-        }
-      });
-    }
-  }, [storageMode, checkLocalTracks, syncLocalTracksToCloud]);
 
   // Upload audio files (Handles both Local IndexedDB & Cloud Supabase)
   const importFiles = useCallback(

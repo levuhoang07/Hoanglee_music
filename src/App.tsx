@@ -230,8 +230,13 @@ export function App() {
   };
 
   const handleSwitchStorageMode = (mode: 'local' | 'cloud') => {
+    if (mode === 'cloud' && !user) {
+      setIsAuthModalOpen(true);
+      addToast('info', 'Yêu cầu đăng nhập', 'Vui lòng đăng nhập tài khoản để vào phòng nghe chung.');
+      return;
+    }
     setStorageMode(mode);
-    if (mode === 'cloud' && !isCloudConfigured) {
+    if (mode === 'cloud' && !isCloudConfigured && profile?.isAdmin) {
       setIsCloudSettingsOpen(true);
     }
   };
@@ -391,7 +396,8 @@ export function App() {
           onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
           onSignOut={async () => {
             await signOut();
-            addToast('info', 'Đã đăng xuất', 'Đã quay về chế độ khách.');
+            setStorageMode('local');
+            addToast('info', 'Đã đăng xuất', 'Đã quay về chế độ máy cá nhân.');
           }}
           onSyncLocalToCloud={handleSyncLocalToCloud}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
