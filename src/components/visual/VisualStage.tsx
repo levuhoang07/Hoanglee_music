@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Track } from '../../types/audio';
-import { WalkingBot } from './WalkingBot';
+import { WalkingBot, BotMotionMode } from './WalkingBot';
 import { ParallaxBackground } from './ParallaxBackground';
-import { Sparkles, Eye, EyeOff, Radio } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, Radio, Flame, Headphones, Footprints } from 'lucide-react';
 
 interface VisualStageProps {
   currentTrack: Track | null;
@@ -10,12 +10,22 @@ interface VisualStageProps {
   isBuffering: boolean;
 }
 
+const STORAGE_MOTION_KEY = 'auratunes_bot_motion';
+
 export const VisualStage: React.FC<VisualStageProps> = ({
   currentTrack,
   isPlaying,
   isBuffering,
 }) => {
   const [showVisual, setShowVisual] = useState(true);
+  const [motionMode, setMotionMode] = useState<BotMotionMode>(() => {
+    return (localStorage.getItem(STORAGE_MOTION_KEY) as BotMotionMode) || 'jump-dance';
+  });
+
+  const handleSetMotion = (mode: BotMotionMode) => {
+    setMotionMode(mode);
+    localStorage.setItem(STORAGE_MOTION_KEY, mode);
+  };
 
   if (!showVisual) {
     return (
@@ -45,13 +55,21 @@ export const VisualStage: React.FC<VisualStageProps> = ({
     );
   }
 
+  const getStatusText = () => {
+    if (isBuffering) return 'Đang nạp âm thanh...';
+    if (!isPlaying) return 'Tạm dừng • Bot Nghỉ Ngơi';
+    if (motionMode === 'jump-dance') return '🕺 Bot Đang Nhảy Bật Cực Sung!';
+    if (motionMode === 'groove-chill') return '🎧 Bot Đang Nhún Chill Theo Beat';
+    return '🚶 Bot Đang Đi Bộ Vô Hạn';
+  };
+
   return (
-    <div className="relative w-full h-64 sm:h-72 lg:h-80 glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-2xl flex flex-col justify-between p-6">
+    <div className="relative w-full h-64 sm:h-72 lg:h-80 glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-2xl flex flex-col justify-between p-5 sm:p-6">
       {/* Background Animated Parallax */}
       <ParallaxBackground isPlaying={isPlaying} />
 
-      {/* Top Header info in stage */}
-      <div className="relative z-10 flex items-center justify-between">
+      {/* Top Header & Motion Mode Switcher in stage */}
+      <div className="relative z-10 flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
           <div
             className={`w-2.5 h-2.5 rounded-full ${
@@ -62,16 +80,54 @@ export const VisualStage: React.FC<VisualStageProps> = ({
                 : 'bg-slate-500'
             }`}
           />
-          <span className="text-xs font-semibold tracking-wider uppercase text-text-secondary">
-            {isBuffering
-              ? 'Đang nạp âm thanh...'
-              : isPlaying
-              ? 'Bot Đang Đi Bộ Cùng Âm Nhạc'
-              : 'Tạm dừng • Bot Nghỉ Ngơi'}
+          <span className="text-xs font-bold tracking-wider uppercase text-text-secondary">
+            {getStatusText()}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Motion Style Switcher Pill */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/10 backdrop-blur-md text-[11px] font-semibold">
+            <button
+              onClick={() => handleSetMotion('jump-dance')}
+              title="Điệu Nhảy Bật Sôi Động (Mặc định)"
+              className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all ${
+                motionMode === 'jump-dance'
+                  ? 'bg-gradient-to-r from-accent to-pink-500 text-white shadow-md'
+                  : 'text-text-muted hover:text-white'
+              }`}
+            >
+              <Flame className="w-3 h-3 text-amber-300" />
+              <span>Nhảy Sung</span>
+            </button>
+
+            <button
+              onClick={() => handleSetMotion('groove-chill')}
+              title="Điệu Nhún Chill Lắc Lư"
+              className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all ${
+                motionMode === 'groove-chill'
+                  ? 'bg-accent text-white shadow-md'
+                  : 'text-text-muted hover:text-white'
+              }`}
+            >
+              <Headphones className="w-3 h-3 text-accent-cyan" />
+              <span>Nhún Chill</span>
+            </button>
+
+            <button
+              onClick={() => handleSetMotion('walk-loop')}
+              title="Đi Bộ Vô Hạn"
+              className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all ${
+                motionMode === 'walk-loop'
+                  ? 'bg-accent text-white shadow-md'
+                  : 'text-text-muted hover:text-white'
+              }`}
+            >
+              <Footprints className="w-3 h-3 text-emerald-300" />
+              <span>Đi Bộ</span>
+            </button>
+          </div>
+
           <button
             onClick={() => setShowVisual(false)}
             title="Tắt hiệu ứng để tiết kiệm pin"
@@ -82,9 +138,13 @@ export const VisualStage: React.FC<VisualStageProps> = ({
         </div>
       </div>
 
-      {/* Centered Walking Bot */}
+      {/* Centered Walking & Dancing Bot */}
       <div className="relative z-10 my-auto flex items-center justify-center">
-        <WalkingBot isPlaying={isPlaying} isBuffering={isBuffering} />
+        <WalkingBot
+          isPlaying={isPlaying}
+          isBuffering={isBuffering}
+          motionMode={motionMode}
+        />
       </div>
 
       {/* Bottom Equalizer Wave Visualizer Bars */}
@@ -105,7 +165,7 @@ export const VisualStage: React.FC<VisualStageProps> = ({
 
         {/* Audio Bars Wave */}
         <div className="flex items-end gap-1.5 h-8">
-          {[0.6, 1.2, 0.8, 1.4, 0.5, 1.1, 0.9, 1.3, 0.7].map((speed, i) => (
+          {[0.5, 0.9, 0.6, 1.2, 0.4, 1.0, 0.7, 1.1, 0.6].map((speed, i) => (
             <div
               key={i}
               className="w-1 rounded-full bg-gradient-to-t from-accent to-accent-cyan sound-wave-bar"
