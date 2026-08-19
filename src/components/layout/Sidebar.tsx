@@ -9,26 +9,36 @@ import {
   HardDrive,
   Cloud,
   Sparkles,
+  Users,
 } from 'lucide-react';
+import { StorageMode } from '../../hooks/useLibrary';
 
 interface SidebarProps {
   playlists: Playlist[];
   activePlaylistId: string | null;
   totalTracksCount: number;
+  storageMode: StorageMode;
+  roomCode: string;
   onSelectPlaylist: (playlistId: string | null) => void;
   onOpenCreatePlaylist: () => void;
   onOpenEditPlaylist: (playlist: Playlist) => void;
   onDeletePlaylist: (playlistId: string) => void;
+  onToggleStorageMode: (mode: StorageMode) => void;
+  onOpenRoomModal: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   playlists,
   activePlaylistId,
   totalTracksCount,
+  storageMode,
+  roomCode,
   onSelectPlaylist,
   onOpenCreatePlaylist,
   onOpenEditPlaylist,
   onDeletePlaylist,
+  onToggleStorageMode,
+  onOpenRoomModal,
 }) => {
   return (
     <aside className="w-64 lg:w-72 bg-background-sidebar border-r border-white/5 flex flex-col justify-between h-full p-4 select-none">
@@ -42,10 +52,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <h1 className="text-lg font-bold text-text-primary tracking-tight flex items-center gap-1.5">
               AuraTunes
               <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full bg-accent/20 text-accent-cyan border border-accent/30">
-                MVP
+                Cloud
               </span>
             </h1>
-            <p className="text-[11px] text-text-muted">Trình nghe nhạc cá nhân</p>
+            <p className="text-[11px] text-text-muted">HoangLee Music Space</p>
           </div>
         </div>
 
@@ -65,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="flex items-center gap-3">
               <Music className="w-4 h-4" />
-              <span>Tất cả bài hát</span>
+              <span>{storageMode === 'cloud' ? 'Nhạc chung phòng' : 'Tất cả bài hát'}</span>
             </div>
             <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-white/5 text-text-muted">
               {totalTracksCount}
@@ -88,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          <div className="space-y-0.5 max-h-56 overflow-y-auto pr-1">
+          <div className="space-y-0.5 max-h-52 overflow-y-auto pr-1">
             {playlists.length === 0 ? (
               <p className="text-xs text-text-muted/60 px-3 py-2 italic">
                 Chưa có playlist nào. Hãy bấm dấu + để tạo.
@@ -139,35 +149,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Future Integrations / Storage Info */}
-        <div className="space-y-1 pt-2 border-t border-white/5">
+        {/* Storage Mode Toggle Section */}
+        <div className="space-y-2 pt-2 border-t border-white/5">
           <p className="text-[11px] font-bold text-text-muted tracking-wider uppercase px-3 py-1">
-            Nguồn Âm Thanh
+            Không Gian Âm Nhạc
           </p>
 
-          <div className="px-3 py-2 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3 text-xs text-text-secondary">
-            <HardDrive className="w-4 h-4 text-emerald-400" />
+          <div
+            onClick={() => onToggleStorageMode('local')}
+            className={`px-3 py-2 rounded-xl border flex items-center gap-3 text-xs cursor-pointer transition-all ${
+              storageMode === 'local'
+                ? 'bg-accent/20 border-accent/40 text-white font-semibold'
+                : 'bg-white/5 border-white/5 text-text-secondary hover:bg-white/10'
+            }`}
+          >
+            <HardDrive className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <div className="min-w-0">
-              <p className="font-semibold text-text-primary">Bộ nhớ Trình duyệt</p>
-              <p className="text-[11px] text-text-muted">IndexedDB • Local First</p>
+              <p className="font-semibold">Máy Của Tôi</p>
+              <p className="text-[10px] text-text-muted">IndexedDB • Riêng tư</p>
             </div>
           </div>
 
-          <div className="px-3 py-2 rounded-xl bg-white/5 border border-dashed border-white/10 flex items-center gap-3 text-xs text-text-muted opacity-70">
-            <Cloud className="w-4 h-4 text-accent" />
-            <div className="min-w-0">
-              <p className="font-semibold">Google Drive Picker</p>
-              <p className="text-[10px] text-accent font-medium">Sẵn sàng cắm Adapter</p>
+          <div
+            onClick={() => onToggleStorageMode('cloud')}
+            className={`px-3 py-2 rounded-xl border flex items-center justify-between text-xs cursor-pointer transition-all ${
+              storageMode === 'cloud'
+                ? 'bg-gradient-to-r from-accent/25 to-accent-cyan/25 border-accent-cyan/40 text-white font-semibold'
+                : 'bg-white/5 border-white/5 text-text-secondary hover:bg-white/10'
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <Cloud className="w-4 h-4 text-accent-cyan flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="font-semibold">Đám Mây Nhóm</p>
+                <p className="text-[10px] text-accent-cyan">Phòng: {roomCode}</p>
+              </div>
             </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenRoomModal();
+              }}
+              title="Đổi phòng / Chia sẻ mã"
+              className="p-1 rounded-lg hover:bg-white/10 text-text-muted hover:text-white transition-colors"
+            >
+              <Users className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Footer Info */}
       <div className="pt-4 border-t border-white/5 px-2 text-[11px] text-text-muted flex items-center justify-between">
-        <span>Bản quyền cá nhân</span>
+        <span>HoangLee Space</span>
         <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white/5 text-text-secondary">
-          v0.1.0-mvp
+          v0.2.0-cloud
         </span>
       </div>
     </aside>

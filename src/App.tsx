@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from './hooks/useAuth';
 import { useLibrary } from './hooks/useLibrary';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -9,6 +10,9 @@ import { BottomBar } from './components/layout/BottomBar';
 import { PlaylistModal } from './components/library/PlaylistModal';
 import { AddToPlaylistModal } from './components/library/AddToPlaylistModal';
 import { DeleteConfirmModal } from './components/library/DeleteConfirmModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { RoomModal } from './components/auth/RoomModal';
+import { CloudSettingsModal } from './components/auth/CloudSettingsModal';
 import { Modal } from './components/common/Modal';
 import { UploadDropzone } from './components/library/UploadDropzone';
 import { Track } from './types/audio';
@@ -24,8 +28,22 @@ interface Toast {
 
 export function App() {
   const {
+    user,
+    profile,
+    roomCode,
+    isConfigured: isCloudConfigured,
+    signIn,
+    signUp,
+    signOut,
+    joinRoom,
+    refreshAuth,
+  } = useAuth();
+
+  const {
     tracks,
     playlists,
+    storageMode,
+    setStorageMode,
     activePlaylist,
     activePlaylistId,
     currentViewTracks,
@@ -43,7 +61,8 @@ export function App() {
     setActivePlaylistId,
     setSearchQuery,
     setSortBy,
-  } = useLibrary();
+    refreshLibrary,
+  } = useLibrary(roomCode, profile);
 
   const {
     currentTrack,
@@ -91,6 +110,11 @@ export function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Cloud & Auth Modals
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
 
   // Toast Notification System
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -158,9 +182,9 @@ export function App() {
 
   const handleConfirmDelete = async (trackId: string) => {
     try {
-      handleTrackDeleted(trackId); // Pause audio and reset if playing
+      handleTrackDeleted(trackId);
       await deleteTrack(trackId);
-      addToast('success', 'Đã xóa bài hát', 'Bài hát đã được gỡ bỏ hoàn toàn khỏi thư viện.');
+      addToast('success', 'Đã xóa bài hát', 'Bài hát đã được gỡ bỏ khỏi thư viện.');
     } catch (err: any) {
       addToast('error', 'Lỗi khi xóa bài hát', err.message || 'Không thể xóa bài hát.');
     }
@@ -168,32 +192,48 @@ export function App() {
 
   // Handle Import Files with Duplicate Warnings
   const handleImportFiles = async (files: FileList | File[]) => {
+    if (storageMode === 'cloud' && !isCloudConfigured) {
+      setIsCloudSettingsOpen(true);
+      addToast('warning', 'Chưa kết nối Cloud', 'Vui lòng dán Supabase Project URL & Anon Key để tải nhạc lên Cloud.');
+      return { count: 0, tracks: [] };
+    }
+
     const res = await importFiles(files);
-    
+
     if (res.duplicates && res.duplicates.length > 0) {
       addToast(
         'warning',
         'Phát hiện file trùng lặp',
-        `Đã bỏ qua ${res.duplicates.length} file đã có trong thư viện: ${res.duplicates.join(', ')}.`
+        `Đã bỏ qua ${res.duplicates.length} file đã có: ${res.duplicates.join(', ')}.`
       );
     }
 
     if (res.count > 0) {
       addToast(
         'success',
-        'Tải lên thành công',
-        `Đã nạp ${res.count} bài hát mới vào thư viện cá nhân.`
+        storageMode === 'cloud' ? 'Đã tải lên nhóm' : 'Tải lên thành công',
+        `Đã thêm ${res.count} bài hát vào ${storageMode === 'cloud' ? `phòng [${roomCode}]` : 'bộ nhớ máy'}.`
       );
     }
-    
+
     return res;
+  };
+
+  const handleSwitchStorageMode = (mode: 'local' | 'cloud') => {
+    setStorageMode(mode);
+    if (mode === 'cloud' && !isCloudConfigured) {
+      setIsCloudSettingsOpen(true);
+    }
   };
 
   const getHeaderTitle = () => {
     if (activePlaylist) {
       return `Playlist: ${activePlaylist.name}`;
     }
-    return 'Thư Viện Nhạc Của Tôi';
+    if (storageMode === 'cloud') {
+      return `Không Gian Nhóm (Phòng: ${roomCode})`;
+    }
+    return 'Thư Viện Máy Của Tôi';
   };
 
   return (
@@ -244,10 +284,14 @@ export function App() {
           playlists={playlists}
           activePlaylistId={activePlaylistId}
           totalTracksCount={tracks.length}
+          storageMode={storageMode}
+          roomCode={roomCode}
           onSelectPlaylist={setActivePlaylistId}
           onOpenCreatePlaylist={handleOpenCreatePlaylist}
           onOpenEditPlaylist={handleOpenEditPlaylist}
           onDeletePlaylist={deletePlaylist}
+          onToggleStorageMode={handleSwitchStorageMode}
+          onOpenRoomModal={() => setIsRoomModalOpen(true)}
         />
       </div>
 
@@ -263,6 +307,8 @@ export function App() {
               playlists={playlists}
               activePlaylistId={activePlaylistId}
               totalTracksCount={tracks.length}
+              storageMode={storageMode}
+              roomCode={roomCode}
               onSelectPlaylist={(id) => {
                 setActivePlaylistId(id);
                 setIsMobileSidebarOpen(false);
@@ -276,6 +322,14 @@ export function App() {
                 handleOpenEditPlaylist(pl);
               }}
               onDeletePlaylist={deletePlaylist}
+              onToggleStorageMode={(m) => {
+                handleSwitchStorageMode(m);
+                setIsMobileSidebarOpen(false);
+              }}
+              onOpenRoomModal={() => {
+                setIsMobileSidebarOpen(false);
+                setIsRoomModalOpen(true);
+              }}
             />
           </div>
         </div>
@@ -299,9 +353,20 @@ export function App() {
           searchQuery={searchQuery}
           sortBy={sortBy}
           sortOrder={sortOrder}
+          storageMode={storageMode}
+          roomCode={roomCode}
+          user={user}
           onSearchChange={setSearchQuery}
           onSortChange={setSortBy}
+          onToggleStorageMode={handleSwitchStorageMode}
           onOpenUpload={() => setIsUploadModalOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onOpenRoom={() => setIsRoomModalOpen(true)}
+          onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
+          onSignOut={async () => {
+            await signOut();
+            addToast('info', 'Đã đăng xuất', 'Đã quay về chế độ khách.');
+          }}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
 
@@ -347,6 +412,42 @@ export function App() {
         />
       </div>
 
+      {/* Auth Modal (Login/Register) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSignIn={async (email, pass) => {
+          await signIn(email, pass);
+          addToast('success', 'Đăng nhập thành công', `Chào mừng trở lại!`);
+        }}
+        onSignUp={async (email, pass, name) => {
+          await signUp(email, pass, name);
+          addToast('success', 'Đăng ký thành công', `Tài khoản "${name}" đã được tạo.`);
+        }}
+      />
+
+      {/* Room Modal */}
+      <RoomModal
+        isOpen={isRoomModalOpen}
+        onClose={() => setIsRoomModalOpen(false)}
+        currentRoomCode={roomCode}
+        onJoinRoom={(code) => {
+          joinRoom(code);
+          addToast('info', 'Đã đổi phòng', `Đang ở phòng nghe chung: [${code}].`);
+        }}
+      />
+
+      {/* Cloud Settings Modal */}
+      <CloudSettingsModal
+        isOpen={isCloudSettingsOpen}
+        onClose={() => setIsCloudSettingsOpen(false)}
+        onConfigSaved={() => {
+          refreshAuth();
+          refreshLibrary();
+          addToast('success', 'Đã lưu cấu hình', 'Đã kết nối thành công với Supabase Cloud.');
+        }}
+      />
+
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={isDeleteModalOpen}
@@ -377,7 +478,7 @@ export function App() {
       <Modal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        title="Thêm Bài Hát Từ Máy Cá Nhân"
+        title={storageMode === 'cloud' ? `Tải Nhạc Lên Phòng [${roomCode}]` : 'Thêm Bài Hát Từ Máy Cá Nhân'}
       >
         <div className="space-y-4">
           <UploadDropzone
