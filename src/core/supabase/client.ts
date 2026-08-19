@@ -14,9 +14,12 @@ export function getSavedSupabaseConfig(): SupabaseConfig {
     }
   }
 
+  const defaultUrl = 'https://jmumzoeuslfvisubwtxe.supabase.co';
+  const defaultKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdW16b2V1c2xmdmlzdWJ3dHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMDUyNTEsImV4cCI6MjEwMjY4MTI1MX0.lnIHvPHSh-VMBdEdipUDBBBDmALNQiVSDC1mCnlhmL4';
+
   return {
-    url: (import.meta as any).env?.VITE_SUPABASE_URL || '',
-    anonKey: (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '',
+    url: (import.meta as any).env?.VITE_SUPABASE_URL || defaultUrl,
+    anonKey: (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || defaultKey,
   };
 }
 
