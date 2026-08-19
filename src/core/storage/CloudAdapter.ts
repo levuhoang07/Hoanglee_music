@@ -20,7 +20,7 @@ export class CloudMusicAdapter {
     // Cloud URLs do not require local revokeObjectURL
   }
 
-  async getAllTracks(roomCode: string = 'DEFAULT'): Promise<Track[]> {
+  async getAllTracks(roomCode: string = 'HOANGLEE'): Promise<Track[]> {
     const supabase = getSupabaseClient();
     if (!supabase) return [];
 
@@ -43,7 +43,7 @@ export class CloudMusicAdapter {
       duration: Number(row.duration) || 0,
       fileSize: Number(row.file_size) || undefined,
       mimeType: row.mime_type || 'audio/mpeg',
-      sourceType: 'local', // treated as streamable
+      sourceType: 'cloud',
       streamUrl: row.stream_url,
       storagePath: row.storage_path,
       uploaderName: row.uploader_name,
@@ -55,7 +55,7 @@ export class CloudMusicAdapter {
     file: File,
     uploaderId?: string,
     uploaderName?: string,
-    roomCode: string = 'DEFAULT'
+    roomCode: string = 'HOANGLEE'
   ): Promise<Track> {
     const supabase = getSupabaseClient();
     if (!supabase) throw new Error('Chưa cấu hình kết nối Supabase Cloud.');
@@ -109,9 +109,59 @@ export class CloudMusicAdapter {
       duration,
       fileSize: file.size,
       mimeType: file.type || 'audio/mpeg',
-      sourceType: 'local',
+      sourceType: 'cloud',
       streamUrl,
       addedAt: Date.now(),
+    };
+  }
+
+  async uploadLocalBlobToCloud(
+    track: Track,
+    blob: Blob,
+    uploaderId?: string,
+    uploaderName?: string,
+    roomCode: string = 'HOANGLEE'
+  ): Promise<Track> {
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new Error('Chưa kết nối Supabase Cloud.');
+
+    const trackId = `cloud_${track.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const cleanTitle = (track.title || 'audio').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `${roomCode}/${trackId}_${cleanTitle}.mp3`;
+
+    // 1. Upload Blob
+    await supabase.storage
+      .from('music_files')
+      .upload(storagePath, blob, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: track.mimeType || 'audio/mpeg',
+      });
+
+    // 2. Get URL
+    const { data: urlData } = supabase.storage.from('music_files').getPublicUrl(storagePath);
+    const streamUrl = urlData.publicUrl;
+
+    // 3. Upsert DB Record
+    await supabase.from('tracks').upsert({
+      id: trackId,
+      title: track.title,
+      artist: track.artist,
+      duration: track.duration,
+      file_size: track.fileSize || blob.size,
+      mime_type: track.mimeType || 'audio/mpeg',
+      storage_path: storagePath,
+      stream_url: streamUrl,
+      uploader_id: uploaderId || null,
+      uploader_name: uploaderName || 'Admin HoangLee',
+      room_code: roomCode,
+    });
+
+    return {
+      ...track,
+      id: trackId,
+      sourceType: 'cloud',
+      streamUrl,
     };
   }
 

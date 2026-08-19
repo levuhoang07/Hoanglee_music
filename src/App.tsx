@@ -50,6 +50,8 @@ export function App() {
     searchQuery,
     sortBy,
     sortOrder,
+    localTracksCount,
+    isSyncing,
     importFiles,
     loadDemoTrack,
     deleteTrack,
@@ -62,6 +64,7 @@ export function App() {
     setSearchQuery,
     setSortBy,
     refreshLibrary,
+    syncLocalTracksToCloud,
   } = useLibrary(roomCode, profile);
 
   const {
@@ -233,6 +236,19 @@ export function App() {
     }
   };
 
+  const handleSyncLocalToCloud = async () => {
+    try {
+      const res = await syncLocalTracksToCloud(roomCode || 'HOANGLEE');
+      addToast(
+        'success',
+        'Đồng bộ thành công',
+        `Đã chuyển ${res.synced} bài hát từ máy lên phòng [${roomCode || 'HOANGLEE'}] để cả nhóm cùng nghe.`
+      );
+    } catch (err: any) {
+      addToast('error', 'Lỗi đồng bộ', err.message || 'Không thể đồng bộ nhạc lên đám mây.');
+    }
+  };
+
   const getHeaderTitle = () => {
     if (activePlaylist) {
       return `Playlist: ${activePlaylist.name}`;
@@ -363,6 +379,8 @@ export function App() {
           storageMode={storageMode}
           roomCode={roomCode}
           user={user}
+          localTracksCount={localTracksCount}
+          isSyncing={isSyncing}
           onSearchChange={setSearchQuery}
           onSortChange={setSortBy}
           onToggleStorageMode={handleSwitchStorageMode}
@@ -374,6 +392,7 @@ export function App() {
             await signOut();
             addToast('info', 'Đã đăng xuất', 'Đã quay về chế độ khách.');
           }}
+          onSyncLocalToCloud={handleSyncLocalToCloud}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
 
@@ -384,6 +403,10 @@ export function App() {
           isPlaying={isPlaying}
           isBuffering={isBuffering}
           activePlaylist={activePlaylist}
+          storageMode={storageMode}
+          roomCode={roomCode}
+          localTracksCount={localTracksCount}
+          isSyncing={isSyncing}
           onPlayTrack={(track) => playTrack(track, true)}
           onDeleteTrack={handlePromptDeleteTrack}
           onImportFiles={handleImportFiles}
@@ -394,6 +417,7 @@ export function App() {
               ? (trackId) => removeTrackFromPlaylist(activePlaylist.id, trackId)
               : undefined
           }
+          onSyncLocalToCloud={handleSyncLocalToCloud}
         />
 
         {/* Bottom Playback Bar */}

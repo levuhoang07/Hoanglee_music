@@ -6,6 +6,7 @@ import {
   getAllPlaylistsFromDB,
   savePlaylistToDB,
   deletePlaylistFromDB,
+  getAudioBlobFromDB,
 } from '../core/storage/db';
 import { localMusicAdapter } from '../core/storage/LocalAdapter';
 import { cloudMusicAdapter } from '../core/storage/CloudAdapter';
@@ -14,7 +15,9 @@ import { getSupabaseClient } from '../core/supabase/client';
 export type StorageMode = 'local' | 'cloud';
 
 export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProfile?: any) {
-  const [storageMode, setStorageMode] = useState<StorageMode>('local');
+  const [storageMode, setStorageMode] = useState<StorageMode>('cloud'); // Default to Cloud room HOANGLEE
+  const [localTracksCount, setLocalTracksCount] = useState<number>(0);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [libraryState, setLibraryState] = useState<LibraryState>({
     tracks: [],
     playlists: [],
@@ -28,12 +31,25 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
   const roomCodeRef = useRef(currentRoomCode);
   roomCodeRef.current = currentRoomCode;
 
+  // Check local tracks count
+  const checkLocalTracks = useCallback(async () => {
+    try {
+      const locals = await getAllTracksFromDB();
+      setLocalTracksCount(locals.length);
+      return locals;
+    } catch {
+      return [];
+    }
+  }, []);
+
   // Load all tracks and playlists from DB / Cloud
   const refreshLibrary = useCallback(async () => {
     try {
       setIsLoading(true);
+      await checkLocalTracks();
+
       if (storageMode === 'cloud') {
-        const cloudTracks = await cloudMusicAdapter.getAllTracks(roomCodeRef.current);
+        const cloudTracks = await cloudMusicAdapter.getAllTracks(roomCodeRef.current || 'HOANGLEE');
         const playlists = await getAllPlaylistsFromDB();
         setLibraryState((prev) => ({
           ...prev,
@@ -56,7 +72,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
     } finally {
       setIsLoading(false);
     }
-  }, [storageMode]);
+  }, [storageMode, checkLocalTracks]);
 
   useEffect(() => {
     refreshLibrary();
@@ -69,7 +85,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
     if (!supabase) return;
 
     const channel = supabase
-      .channel('realtime_tracks')
+      .channel('realtime_tracks_room')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tracks' },
@@ -83,6 +99,57 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
       supabase.removeChannel(channel);
     };
   }, [storageMode, refreshLibrary]);
+
+  // Sync all Local IndexedDB Tracks into Supabase Room HOANGLEE
+  const syncLocalTracksToCloud = useCallback(
+    async (targetRoom: string = 'HOANGLEE') => {
+      try {
+        setIsSyncing(true);
+        const localTracks = await getAllTracksFromDB();
+        if (localTracks.length === 0) return { synced: 0 };
+
+        let syncedCount = 0;
+        for (const track of localTracks) {
+          const blobId = track.blobId || track.id;
+          const blob = await getAudioBlobFromDB(blobId);
+          if (blob) {
+            await cloudMusicAdapter.uploadLocalBlobToCloud(
+              track,
+              blob,
+              currentUserProfile?.id,
+              currentUserProfile?.displayName || 'Admin HoangLee',
+              targetRoom
+            );
+            syncedCount++;
+          }
+        }
+
+        await refreshLibrary();
+        return { synced: syncedCount };
+      } catch (err) {
+        console.error('Lỗi đồng bộ nhạc lên Cloud:', err);
+        throw err;
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [currentUserProfile, refreshLibrary]
+  );
+
+  // Auto-sync check: if Cloud library has 0 tracks but local has tracks, trigger auto sync
+  useEffect(() => {
+    if (storageMode === 'cloud') {
+      checkLocalTracks().then(async (locals) => {
+        if (locals.length > 0) {
+          const cloudTracks = await cloudMusicAdapter.getAllTracks(roomCodeRef.current || 'HOANGLEE');
+          if (cloudTracks.length === 0) {
+            // Auto sync local tracks to room
+            syncLocalTracksToCloud(roomCodeRef.current || 'HOANGLEE').catch(() => {});
+          }
+        }
+      });
+    }
+  }, [storageMode, checkLocalTracks, syncLocalTracksToCloud]);
 
   // Upload audio files (Handles both Local IndexedDB & Cloud Supabase)
   const importFiles = useCallback(
@@ -102,7 +169,7 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
       const { parseFilename } = await import('../utils/metadataParser');
       const existingTracks =
         storageMode === 'cloud'
-          ? await cloudMusicAdapter.getAllTracks(roomCodeRef.current)
+          ? await cloudMusicAdapter.getAllTracks(roomCodeRef.current || 'HOANGLEE')
           : await getAllTracksFromDB();
 
       const newTracks: Track[] = [];
@@ -129,8 +196,8 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
             const track = await cloudMusicAdapter.saveTrack(
               file,
               currentUserProfile?.id,
-              currentUserProfile?.displayName || 'Bạn bè',
-              roomCodeRef.current
+              currentUserProfile?.displayName || 'Admin HoangLee',
+              roomCodeRef.current || 'HOANGLEE'
             );
             newTracks.push(track);
             existingTracks.push(track);
@@ -308,6 +375,8 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
   return {
     ...libraryState,
     storageMode,
+    localTracksCount,
+    isSyncing,
     setStorageMode,
     activePlaylist,
     currentViewTracks,
@@ -324,5 +393,6 @@ export function useLibrary(currentRoomCode: string = 'HOANGLEE', currentUserProf
     setSearchQuery,
     setSortBy,
     refreshLibrary,
+    syncLocalTracksToCloud,
   };
 }

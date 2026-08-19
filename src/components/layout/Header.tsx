@@ -11,6 +11,8 @@ import {
   User,
   LogOut,
   Settings,
+  RefreshCw,
+  Zap,
 } from 'lucide-react';
 import { LibraryState } from '../../types/library';
 import { StorageMode } from '../../hooks/useLibrary';
@@ -23,6 +25,8 @@ interface HeaderProps {
   storageMode: StorageMode;
   roomCode: string;
   user: any | null;
+  localTracksCount?: number;
+  isSyncing?: boolean;
   onSearchChange: (query: string) => void;
   onSortChange: (sort: LibraryState['sortBy']) => void;
   onToggleStorageMode: (mode: StorageMode) => void;
@@ -31,6 +35,7 @@ interface HeaderProps {
   onOpenRoom: () => void;
   onOpenCloudSettings: () => void;
   onSignOut: () => void;
+  onSyncLocalToCloud?: () => void;
   onToggleMobileSidebar?: () => void;
 }
 
@@ -42,6 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
   storageMode,
   roomCode,
   user,
+  localTracksCount = 0,
+  isSyncing = false,
   onSearchChange,
   onSortChange,
   onToggleStorageMode,
@@ -50,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRoom,
   onOpenCloudSettings,
   onSignOut,
+  onSyncLocalToCloud,
   onToggleMobileSidebar,
 }) => {
   return (
@@ -107,6 +115,23 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Phòng: {roomCode}</span>
           </button>
         )}
+
+        {/* Quick Sync Button (Pushes local tracks into cloud room) */}
+        {localTracksCount > 0 && onSyncLocalToCloud && (
+          <button
+            onClick={onSyncLocalToCloud}
+            disabled={isSyncing}
+            title="Đẩy tất cả bài hát từ máy lên phòng nghe để bạn bè cùng nghe"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-all disabled:opacity-50"
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+            ) : (
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+            )}
+            <span>Đẩy {localTracksCount} bài lên phòng</span>
+          </button>
+        )}
       </div>
 
       {/* Right: Search, Actions, Account */}
@@ -144,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="glass-button px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-accent to-accent-violet hover:from-indigo-500 hover:to-violet-500 flex items-center gap-1.5 shadow-md shadow-accent/20"
         >
           <UploadCloud className="w-4 h-4" />
-          <span className="hidden sm:inline">{storageMode === 'cloud' ? 'Tải Lên Nhóm' : 'Thêm Nhạc'}</span>
+          <span className="hidden sm:inline">{storageMode === 'cloud' ? 'Tải Lên Phòng' : 'Thêm Nhạc'}</span>
         </button>
 
         {/* User Account / Login Button */}
@@ -153,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="px-2 py-1 font-semibold text-text-primary flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="max-w-[80px] sm:max-w-[120px] truncate">
-                {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                {user.displayName || user.user_metadata?.full_name || user.email?.split('@')[0]}
               </span>
             </div>
             <button
