@@ -49,8 +49,10 @@ export function useAuth() {
             email,
             displayName: isAdmin
               ? '👑 Admin HoangLee'
-              : currentUser.user_metadata?.full_name || email.split('@')[0] || 'HoangLee Member',
-            currentRoomCode: roomCode,
+              : email.startsWith('user')
+              ? '🎵 Bạn Bè HoangLee'
+              : currentUser.user_metadata?.full_name || email.split('@')[0] || 'Thành viên',
+            currentRoomCode: roomCode || 'HOANGLEE',
             isAdmin,
           });
           setLoading(false);
@@ -61,7 +63,7 @@ export function useAuth() {
       }
     }
 
-    // 2. Kiểm tra Local Admin Session (offline / khi chưa cấu hình Supabase)
+    // 2. Kiểm tra Local Session (offline / fallback)
     const localUserRaw = localStorage.getItem(STORAGE_LOCAL_USER_KEY);
     if (localUserRaw) {
       try {
@@ -96,8 +98,10 @@ export function useAuth() {
             email,
             displayName: isAdmin
               ? '👑 Admin HoangLee'
-              : u.user_metadata?.full_name || email.split('@')[0] || 'HoangLee Member',
-            currentRoomCode: roomCode,
+              : email.startsWith('user')
+              ? '🎵 Bạn Bè HoangLee'
+              : u.user_metadata?.full_name || email.split('@')[0] || 'Thành viên',
+            currentRoomCode: roomCode || 'HOANGLEE',
             isAdmin,
           });
         } else {
@@ -111,26 +115,27 @@ export function useAuth() {
     }
   }, [checkSession, roomCode]);
 
-  // Sign In (Hỗ trợ cả email hoặc username levuhoang)
+  // Sign In (Hỗ trợ Admin: levuhoang/lvh@1605, User tích hợp: user/123, và tài khoản tùy chọn)
   const signIn = async (identifier: string, pass: string) => {
     const cleanId = identifier.trim().toLowerCase();
     const email = normalizeEmail(cleanId);
     const isAdminAccount = cleanId === 'levuhoang' || email === 'levuhoang@hoangleemusic.local';
+    const isUserAccount = cleanId === 'user' || email === 'user@hoangleemusic.local';
 
-    // Kiểm tra tài khoản Admin cứng nếu offline hoặc chưa cấu hình Supabase
+    // 1. TÀI KHOẢN ADMIN: levuhoang / lvh@1605
     if (isAdminAccount && pass === 'lvh@1605') {
       const adminProfile: UserProfile = {
         id: 'admin_master_levuhoang',
         email: 'levuhoang@hoangleemusic.local',
         displayName: '👑 Admin HoangLee',
         isAdmin: true,
-        currentRoomCode: roomCode,
+        currentRoomCode: 'HOANGLEE',
       };
+      joinRoom('HOANGLEE');
 
       const supabase = getSupabaseClient();
       if (supabase) {
         try {
-          // Thử đăng nhập trên Supabase
           const { data, error } = await supabase.auth.signInWithPassword({
             email: 'levuhoang@hoangleemusic.local',
             password: pass,
@@ -143,13 +148,10 @@ export function useAuth() {
             return data.user;
           }
 
-          // Nếu chưa có tài khoản admin trên Supabase, tự động đăng ký tạo luôn!
           const { data: signUpData } = await supabase.auth.signUp({
             email: 'levuhoang@hoangleemusic.local',
             password: pass,
-            options: {
-              data: { full_name: '👑 Admin HoangLee' },
-            },
+            options: { data: { full_name: '👑 Admin HoangLee' } },
           });
 
           if (signUpData.user) {
@@ -159,17 +161,66 @@ export function useAuth() {
             return signUpData.user;
           }
         } catch {
-          // Fallback to local admin
+          // Fallback local
         }
       }
 
-      // Lưu admin session offline
       setUser(adminProfile);
       setProfile(adminProfile);
       localStorage.setItem(STORAGE_LOCAL_USER_KEY, JSON.stringify(adminProfile));
       return adminProfile;
     }
 
+    // 2. TÀI KHOẢN USER TÍCH HỢP SẴN: user / 123 (Vào thẳng phòng HOANGLEE)
+    if (isUserAccount && (pass === '123' || pass === '123123')) {
+      const userProfile: UserProfile = {
+        id: 'user_member_hoanglee',
+        email: 'user@hoangleemusic.local',
+        displayName: '🎵 Bạn Bè HoangLee',
+        isAdmin: false,
+        currentRoomCode: 'HOANGLEE',
+      };
+      joinRoom('HOANGLEE');
+
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: 'user@hoangleemusic.local',
+            password: 'User@123456!',
+          });
+
+          if (!error && data.user) {
+            setUser(data.user);
+            setProfile(userProfile);
+            localStorage.setItem(STORAGE_LOCAL_USER_KEY, JSON.stringify(userProfile));
+            return data.user;
+          }
+
+          const { data: signUpData } = await supabase.auth.signUp({
+            email: 'user@hoangleemusic.local',
+            password: 'User@123456!',
+            options: { data: { full_name: '🎵 Bạn Bè HoangLee' } },
+          });
+
+          if (signUpData.user) {
+            setUser(signUpData.user);
+            setProfile(userProfile);
+            localStorage.setItem(STORAGE_LOCAL_USER_KEY, JSON.stringify(userProfile));
+            return signUpData.user;
+          }
+        } catch {
+          // Fallback local
+        }
+      }
+
+      setUser(userProfile);
+      setProfile(userProfile);
+      localStorage.setItem(STORAGE_LOCAL_USER_KEY, JSON.stringify(userProfile));
+      return userProfile;
+    }
+
+    // 3. TÀI KHOẢN SUPABASE THƯỜNG
     const supabase = getSupabaseClient();
     if (!supabase) {
       throw new Error('Tài khoản hoặc mật khẩu không chính xác.');

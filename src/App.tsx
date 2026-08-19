@@ -137,6 +137,13 @@ export function App() {
     }
   }, [toasts]);
 
+  // Tự động chuyển sang chế độ Đám Mây khi đăng nhập để thấy ngay bài hát trong phòng
+  useEffect(() => {
+    if (user) {
+      setStorageMode('cloud');
+    }
+  }, [user, setStorageMode]);
+
   // Handlers for Playlist Modals
   const handleOpenCreatePlaylist = () => {
     setEditingPlaylist(null);
