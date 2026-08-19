@@ -45,7 +45,7 @@ export function useLibrary() {
     refreshLibrary();
   }, [refreshLibrary]);
 
-  // Upload local audio files
+  // Upload local audio files with Duplicate Detection
   const importFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter((f) => {
       const ext = f.name.split('.').pop()?.toLowerCase();
@@ -53,21 +53,42 @@ export function useLibrary() {
     });
 
     if (fileArray.length === 0) {
-      return { count: 0, tracks: [] };
+      return { count: 0, tracks: [], duplicates: [] };
     }
 
+    const existingTracks = await getAllTracksFromDB();
+    const { parseFilename } = await import('../utils/metadataParser');
+
     const newTracks: Track[] = [];
+    const duplicates: string[] = [];
+
     for (const file of fileArray) {
+      const { title, artist } = parseFilename(file.name);
+      
+      // Kiểm tra xem bài hát đã tồn tại chưa (dựa theo tên + dung lượng hoặc tiêu đề + ca sĩ)
+      const isDuplicate = existingTracks.some(
+        (t) =>
+          ((t.title.toLowerCase() === title.toLowerCase() && t.artist.toLowerCase() === artist.toLowerCase()) ||
+           t.title.toLowerCase() === file.name.toLowerCase()) &&
+          (t.fileSize === file.size || Math.abs((t.fileSize || 0) - file.size) < 500)
+      );
+
+      if (isDuplicate) {
+        duplicates.push(file.name);
+        continue;
+      }
+
       try {
         const track = await localMusicAdapter.saveTrack(file);
         newTracks.push(track);
+        existingTracks.push(track);
       } catch (err) {
         console.error('Lỗi khi lưu file:', file.name, err);
       }
     }
 
     await refreshLibrary();
-    return { count: newTracks.length, tracks: newTracks };
+    return { count: newTracks.length, tracks: newTracks, duplicates };
   }, [refreshLibrary]);
 
   // Add demo track

@@ -12,8 +12,8 @@ interface MainStageProps {
   isBuffering: boolean;
   activePlaylist: Playlist | null;
   onPlayTrack: (track: Track) => void;
-  onDeleteTrack: (trackId: string) => void;
-  onImportFiles: (files: FileList | File[]) => Promise<{ count: number }>;
+  onDeleteTrack: (track: Track) => void;
+  onImportFiles: (files: FileList | File[]) => Promise<{ count: number; duplicates?: string[] }>;
   onOpenAddToPlaylist: (track: Track) => void;
   onRemoveFromPlaylist?: (trackId: string) => void;
   onLoadDemoTrack?: () => Promise<Track | null>;

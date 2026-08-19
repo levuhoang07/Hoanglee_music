@@ -10,7 +10,7 @@ interface TrackListProps {
   isPlaying: boolean;
   activePlaylist: Playlist | null;
   onPlayTrack: (track: Track) => void;
-  onDeleteTrack: (trackId: string) => void;
+  onDeleteTrack: (track: Track) => void;
   onOpenAddToPlaylist: (track: Track) => void;
   onRemoveFromPlaylist?: (trackId: string) => void;
   onLoadDemoTrack?: () => Promise<Track | null>;

@@ -264,6 +264,20 @@ export function useAudioPlayer(playlist: Track[]) {
     });
   }, [generateShuffleSequence]);
 
+  // Xử lý khi bài hát bị xóa
+  const handleTrackDeleted = useCallback((deletedTrackId: string) => {
+    if (audioState.currentTrack?.id === deletedTrackId) {
+      audioEngine.pause();
+      setAudioState((prev) => ({
+        ...prev,
+        currentTrack: null,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+      }));
+    }
+  }, [audioState.currentTrack]);
+
   return {
     ...audioState,
     playTrack,
@@ -275,5 +289,6 @@ export function useAudioPlayer(playlist: Track[]) {
     toggleMute,
     cycleRepeatMode,
     toggleShuffle,
+    handleTrackDeleted,
   };
 }

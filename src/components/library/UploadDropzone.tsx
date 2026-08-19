@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, Plus, Loader2 } from 'lucide-react';
 
 interface UploadDropzoneProps {
-  onImportFiles: (files: FileList | File[]) => Promise<{ count: number }>;
+  onImportFiles: (files: FileList | File[]) => Promise<{ count: number; duplicates?: string[] }>;
   compact?: boolean;
 }
 

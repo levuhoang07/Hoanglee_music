@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLibrary } from './hooks/useLibrary';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -8,11 +8,19 @@ import { MainStage } from './components/layout/MainStage';
 import { BottomBar } from './components/layout/BottomBar';
 import { PlaylistModal } from './components/library/PlaylistModal';
 import { AddToPlaylistModal } from './components/library/AddToPlaylistModal';
+import { DeleteConfirmModal } from './components/library/DeleteConfirmModal';
 import { Modal } from './components/common/Modal';
 import { UploadDropzone } from './components/library/UploadDropzone';
 import { Track } from './types/audio';
 import { Playlist } from './types/library';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+
+interface Toast {
+  id: string;
+  type: 'success' | 'warning' | 'error' | 'info';
+  title: string;
+  message: string;
+}
 
 export function App() {
   const {
@@ -57,6 +65,7 @@ export function App() {
     toggleMute,
     cycleRepeatMode,
     toggleShuffle,
+    handleTrackDeleted,
   } = useAudioPlayer(currentViewTracks);
 
   // Keyboard shortcuts
@@ -77,9 +86,32 @@ export function App() {
   const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const [trackToAddToPlaylist, setTrackToAddToPlaylist] = useState<Track | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [trackToDelete, setTrackToDelete] = useState<Track | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Toast Notification System
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = (type: Toast['type'], title: string, message: string) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  useEffect(() => {
+    if (toasts.length > 0) {
+      const timer = setTimeout(() => {
+        setToasts((prev) => prev.slice(1));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toasts]);
 
   // Handlers for Playlist Modals
   const handleOpenCreatePlaylist = () => {
@@ -95,8 +127,10 @@ export function App() {
   const handleSavePlaylist = async (name: string, description?: string) => {
     if (editingPlaylist) {
       await updatePlaylist(editingPlaylist.id, name, description);
+      addToast('success', 'Đã cập nhật playlist', `Playlist "${name}" đã được lưu.`);
     } else {
       await createPlaylist(name, description);
+      addToast('success', 'Đã tạo playlist', `Playlist "${name}" đã sẵn sàng.`);
     }
   };
 
@@ -109,9 +143,50 @@ export function App() {
     const pl = playlists.find((p) => p.id === playlistId);
     if (pl?.trackIds.includes(trackId)) {
       await removeTrackFromPlaylist(playlistId, trackId);
+      addToast('info', 'Đã gỡ bài hát', `Đã xóa bài hát khỏi playlist "${pl.name}".`);
     } else {
       await addTrackToPlaylist(playlistId, trackId);
+      addToast('success', 'Đã thêm vào playlist', `Đã thêm vào "${pl?.name}".`);
     }
+  };
+
+  // Safe Track Deletion
+  const handlePromptDeleteTrack = (track: Track) => {
+    setTrackToDelete(track);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async (trackId: string) => {
+    try {
+      handleTrackDeleted(trackId); // Pause audio and reset if playing
+      await deleteTrack(trackId);
+      addToast('success', 'Đã xóa bài hát', 'Bài hát đã được gỡ bỏ hoàn toàn khỏi thư viện.');
+    } catch (err: any) {
+      addToast('error', 'Lỗi khi xóa bài hát', err.message || 'Không thể xóa bài hát.');
+    }
+  };
+
+  // Handle Import Files with Duplicate Warnings
+  const handleImportFiles = async (files: FileList | File[]) => {
+    const res = await importFiles(files);
+    
+    if (res.duplicates && res.duplicates.length > 0) {
+      addToast(
+        'warning',
+        'Phát hiện file trùng lặp',
+        `Đã bỏ qua ${res.duplicates.length} file đã có trong thư viện: ${res.duplicates.join(', ')}.`
+      );
+    }
+
+    if (res.count > 0) {
+      addToast(
+        'success',
+        'Tải lên thành công',
+        `Đã nạp ${res.count} bài hát mới vào thư viện cá nhân.`
+      );
+    }
+    
+    return res;
   };
 
   const getHeaderTitle = () => {
@@ -123,6 +198,46 @@ export function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-sans">
+      {/* Toast Notifications */}
+      <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto p-4 rounded-2xl border shadow-2xl backdrop-blur-xl flex items-start gap-3 transition-all animate-in slide-in-from-top-3 ${
+              t.type === 'warning'
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-200 shadow-amber-950/40'
+                : t.type === 'error'
+                ? 'bg-red-500/20 border-red-500/40 text-red-200 shadow-red-950/40'
+                : t.type === 'info'
+                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200 shadow-cyan-950/40'
+                : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200 shadow-emerald-950/40'
+            }`}
+          >
+            {t.type === 'warning' ? (
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            ) : t.type === 'error' ? (
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            ) : t.type === 'info' ? (
+              <AlertCircle className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-white tracking-wide">{t.title}</p>
+              <p className="text-xs opacity-90 mt-0.5 leading-relaxed">{t.message}</p>
+            </div>
+
+            <button
+              onClick={() => removeToast(t.id)}
+              className="p-1 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Desktop Sidebar */}
       <div className="hidden md:block h-full">
         <Sidebar
@@ -198,8 +313,8 @@ export function App() {
           isBuffering={isBuffering}
           activePlaylist={activePlaylist}
           onPlayTrack={(track) => playTrack(track, true)}
-          onDeleteTrack={deleteTrack}
-          onImportFiles={importFiles}
+          onDeleteTrack={handlePromptDeleteTrack}
+          onImportFiles={handleImportFiles}
           onLoadDemoTrack={loadDemoTrack}
           onOpenAddToPlaylist={handleOpenAddToPlaylist}
           onRemoveFromPlaylist={
@@ -232,6 +347,14 @@ export function App() {
         />
       </div>
 
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        track={trackToDelete}
+        onConfirmDelete={handleConfirmDelete}
+      />
+
       {/* Playlist Create/Edit Modal */}
       <PlaylistModal
         isOpen={isPlaylistModalOpen}
@@ -259,7 +382,7 @@ export function App() {
         <div className="space-y-4">
           <UploadDropzone
             onImportFiles={async (files) => {
-              const res = await importFiles(files);
+              const res = await handleImportFiles(files);
               setIsUploadModalOpen(false);
               return res;
             }}

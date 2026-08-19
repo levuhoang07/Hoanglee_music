@@ -9,7 +9,7 @@ interface TrackItemProps {
   isCurrent: boolean;
   isPlaying: boolean;
   onPlay: (track: Track) => void;
-  onDelete: (trackId: string) => void;
+  onDelete: (track: Track) => void;
   onOpenAddToPlaylist: (track: Track) => void;
   onRemoveFromActivePlaylist?: (trackId: string) => void;
 }
@@ -107,11 +107,7 @@ export const TrackItem: React.FC<TrackItemProps> = ({
           {/* Delete from library */}
           {!onRemoveFromActivePlaylist && (
             <button
-              onClick={() => {
-                if (window.confirm(`Bạn có chắc muốn xóa bài "${track.title}" khỏi thư viện?`)) {
-                  onDelete(track.id);
-                }
-              }}
+              onClick={() => onDelete(track)}
               title="Xóa bài hát khỏi thư viện"
               className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-white/10 transition-colors"
             >
